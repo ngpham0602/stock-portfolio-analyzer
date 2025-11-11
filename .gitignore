@@ -1,0 +1,25 @@
+# Python
+venv/
+__pycache__/
+*py[cod]
+.Python
+
+# Data
+data/raw/*
+data/processed/*
+*.csv
+*.json
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
