@@ -21,9 +21,15 @@ class Position(BaseModel):
     current_price: Optional[Decimal] = None
 
     @property
-    def market_value(self) -> Optional[Decimal]:
+    def unrealized_pnl(self) -> Optional[Decimal]:
         if self.current_price: 
             return (self.current_price - self.avg_cost) * self.quantity
+        return None
+    
+    @property
+    def market_value(self) -> Optional[Decimal]:
+        if self.current_price: 
+            return self.current_price * self.quantity
         return None
 
 class Portfolio(BaseModel):
@@ -31,4 +37,3 @@ class Portfolio(BaseModel):
     cash: Decimal = Decimal("100000.0")
     base_currency: str = 'AUD'
 
-    
