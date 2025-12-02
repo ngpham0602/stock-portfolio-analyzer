@@ -8,7 +8,7 @@ class AlphaVantageFetcher(BaseProvider):
         self.settings = settings
 
     # 1. INTERNAL HELPERS
-    def _build_url(self, function: str, params: dict) -> str:
+    def _build_url(self, function: str, params: dict) -> dict:
         base = {"function": function, "apikey": self.settings.ALPHAVANTAGE_KEY}
         for key, value in params:
             base[key] = value
@@ -16,18 +16,23 @@ class AlphaVantageFetcher(BaseProvider):
 
 
     def _get(self, params: dict) -> dict:
+        params = self._build_params(function, params)
+        last_error = Exception | None = None
         for attempt in requests.get(self.settings.RETRY_COUNT):
             try:
                 r = requests.get(self.settings.ALPHAVANTAGE_BASE_URL, params=params, timeout=self.settings.HTTP_TIMEOUT)
+                r.raise_for_status()
                 data = r.json()
                 if "Error Message" in data:
                     raise Exception("Invalid symbol or bad API call")
                 if "Note" in data:
                     raise Exception("Rate limit exceeded")
-            except Exception as e:
-                sleep_duration = self.settings.RETRY_BACKOFF * (attempt + 1)
-                time.sleep(sleep_duration)
-        raise Exception("Failed to fetch from AV after retries")
+            except (requests.RequestException, ValueError, RuntimeError) as e:
+                last_error = e
+                if attempt < self.settings.RETRY_COUNT - 1:
+                    sleep_duration = self.settings.RETRY_BACKOFF * (attempt + 1)
+                    time.sleep(sleep_duration)
+        raise RuntimeError(f"Failed to fetch from Alpha Vantage after retries: {last_error}")
     
 
     # 2. TIME SERIES PRICES
