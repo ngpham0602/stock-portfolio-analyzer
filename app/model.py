@@ -37,3 +37,27 @@ class Portfolio(BaseModel):
     cash: Decimal = Decimal("100000.0")
     base_currency: str = 'AUD'
 
+class PriceBar(BaseModel):
+    timestamp: datetime
+    open: Decimal | None
+    volume: int | None
+    dividend: Decimal | None
+    split_coef: Decimal | None
+
+class DailySeries(BaseModel):
+    symbol: str 
+    bars: list[PriceBar]
+    
+    @property
+    def latest_bar(self):
+        pass
+
+class IndicatorPoint(BaseModel):
+    timestamp: datetime
+    value: Decimal
+
+class FxRate(BaseModel):
+    from_currency: str
+    to_currency: str
+    rate: Decimal
+    timestamp: datetime

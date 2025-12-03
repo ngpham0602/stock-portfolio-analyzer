@@ -1,7 +1,10 @@
-from config import DataSettings
-from app.data_providers.base import BaseProvider
-import requests
 import time
+from typing import Dict, Any
+
+import requests
+
+from app.config import DataSettings
+from app.data_providers.base import BaseProvider, ProviderError
 
 class AlphaVantageFetcher(BaseProvider):
     def __init__(self, settings: DataSettings):
@@ -16,23 +19,23 @@ class AlphaVantageFetcher(BaseProvider):
 
     def _get(self, function: str, extra_params: dict) -> dict:
         params = self._build_url(function, extra_params)
-        last_error = Exception | None = None
-        for attempt in requests.get(self.settings.RETRY_COUNT):
+        last_error: Exception | None = None
+        for attempt in range(self.settings.RETRY_COUNT):
             try:
                 r = requests.get(self.settings.ALPHAVANTAGE_BASE_URL, params=params, timeout=self.settings.HTTP_TIMEOUT)
                 r.raise_for_status()
                 data = r.json()
                 if "Error Message" in data:
-                    raise Exception("Invalid symbol or bad API call")
+                    raise ProviderError(f"Invalid symbol or bad API call for {extra_params.get('symbol', '')}")
                 if "Note" in data:
-                    raise Exception("Rate limit exceeded")
+                    raise ProviderError("Rate limit exceeded; retrying with backoff")
                 return data
             except (requests.RequestException, ValueError, RuntimeError) as e:
                 last_error = e
                 if attempt < self.settings.RETRY_COUNT - 1:
                     sleep_duration = self.settings.RETRY_BACKOFF * (attempt + 1)
                     time.sleep(sleep_duration)
-        raise RuntimeError(f"Failed to fetch from Alpha Vantage after retries: {last_error}")
+        raise ProviderError(f"Failed to fetch from Alpha Vantage after retries: {last_error}")
     
 
     # 2. TIME SERIES PRICES
@@ -65,11 +68,11 @@ class AlphaVantageFetcher(BaseProvider):
         return data
 
     # 3. TECHNICAL INDICATORS
-    def get_sma(self, symbol: str, period: int, intveral: str = "daily", series_type: str = "close"):
+    def get_sma(self, symbol: str, period: int, interval: str = "daily", series_type: str = "close"):
         function = "SMA"
         extra_params = {
             "symbol": symbol,
-            "interval": intveral,
+            "interval": interval,
             "series_type": series_type,
             "time_period": period
         }
@@ -82,7 +85,7 @@ class AlphaVantageFetcher(BaseProvider):
             "symbol": symbol,
             "interval": interval,
             "series_type": series_type,
-            "interval_period": period
+            "time_period": period
         }
         return self._get(function, extra_params)
 
@@ -103,7 +106,7 @@ class AlphaVantageFetcher(BaseProvider):
         extra_params = {
             "symbol": symbol,
             "interval": interval,
-            "interval_period": period
+            "time_period": period
         }
         return self._get(function, extra_params)
 
@@ -131,11 +134,11 @@ class AlphaVantageFetcher(BaseProvider):
         
 
     # 5. CURRENCY / FX
-    def get_fx_rate(self, base: str, quote: str):
+    def get_fx_rate(self, from_currency: str, to_currency: str):
         function = "CURRENCY_EXCHANGE_RATE"
         extra_params = {
-            "base": base,
-            "quote": quote
+            "from_currency": from_currency,
+            "to_currency": to_currency
         }
         return self._get(function, extra_params)
 
